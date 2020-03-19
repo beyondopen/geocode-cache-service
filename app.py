@@ -44,6 +44,8 @@ def geocode(q):
 @app.route("/", methods=["GET"])
 def index():
     q = request.args.get("q")
+    if q is None:
+        return "choose q such as /?q=Berlin"
 
     location = Location.query.filter(Location.q == q).first()
 
