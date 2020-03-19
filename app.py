@@ -15,7 +15,7 @@ if app.debug:
     api_key = Path("keys.txt").read_text()
 else:
     url = os.environ["DATABASE_URL"]
-    api_key = os.environ("HERE_KEY")
+    api_key = os.environ["HERE_KEY"]
 
 
 app.config["SQLALCHEMY_DATABASE_URI"] = url
