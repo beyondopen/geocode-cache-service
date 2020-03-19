@@ -35,7 +35,7 @@ db.create_all()
 
 def geocode(q):
     r = requests.get(
-        f"https://geocode.search.hereapi.com/v1/geocode?q={q}&apiKey={api_key}&lang=de-de&in=de"
+        f"https://geocode.search.hereapi.com/v1/geocode?q={q}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     )
     if r.ok:
         return r.json()["items"][0]["position"].values()
