@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "cache-geocode-service"
+version = "0.1.0"
+description = ""
+authors = ["Johannes Filter <hi@jfilter.de>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+flask = "*"
+Flask-SQLAlchemy = "*"
+psycopg2 = "*"
+requests = "*"
+gunicorn = "*"
+
+[tool.poetry.dev-dependencies]
+black = {version = "*", allow-prereleases = true, python = ">=3.6"}
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

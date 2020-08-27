@@ -1,14 +1,14 @@
-FROM python:3.7-alpine
+FROM python:3.8-alpine
 
-RUN apk update && apk upgrade && apk add postgresql-dev gcc python3-dev musl-dev
-
-COPY ./requirements.txt /app/requirements.txt
+RUN apk update && apk upgrade && apk add postgresql-dev gcc python3-dev musl-dev libffi-dev
 
 WORKDIR /app
 
-RUN pip install -r requirements.txt
-
 COPY ./ /app
+
+RUN pip install -U --pre pip poetry
+RUN poetry config virtualenvs.create false
+RUN poetry install
 
 ENV FLASK_APP=/app/app.py
 EXPOSE 5000
