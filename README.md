@@ -30,6 +30,8 @@ with data in body:
 {'locations': [{'location': 'Berlin'}]}
 ```
 
+NB: Returns 200 even if no location wasn't found (for one item). Iterate over the responding area to verify if maching geo coords were found.
+
 ## Development
 
 Create `keys.txt` and store a HERE API key in it.
