@@ -2,7 +2,7 @@ import os
 import time
 
 import requests
-from flask import Flask, request
+from flask import Flask, request, abort
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -38,14 +38,22 @@ def geocode(q):
         f"https://geocode.search.hereapi.com/v1/geocode?q={q}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     )
     if r.ok:
-        return r.json()["items"][0]["position"].values()
+        items = r.json()["items"]
+        if len(items) > 0:
+            return items[0]["position"].values()
+        return None
 
 
 def get_location(q):
     location = Location.query.filter(Location.q == q).first()
 
     if location is None:
-        latitude, longitude = geocode(q)
+        geocode_result = geocode(q)
+
+        if geocode_result is None:
+            return None
+
+        latitude, longitude = geocode_result
         location = Location(q=q, latitude=latitude, longitude=longitude)
         db.session.add(location)
         db.session.commit()
@@ -59,7 +67,8 @@ def index_get():
         return "choose q such as /?q=Berlin"
 
     location = get_location(q)
-
+    if location is None:
+        abort(400, f"geolocation failed for `{q}`")
     return {"latitude": location.latitude, "longitude": location.longitude}
 
 
@@ -72,7 +81,8 @@ def index_post():
 
     for x in data["locations"]:
         location = get_location(x["location"])
-        x["latitude"] = location.latitude
-        x["longitude"] = location.longitude
+        if location is not None:
+            x["latitude"] = location.latitude
+            x["longitude"] = location.longitude
 
     return data
