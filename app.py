@@ -1,9 +1,9 @@
-import time
 import os
+import time
 
-from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 import requests
+from flask import Flask, request
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
@@ -41,12 +41,7 @@ def geocode(q):
         return r.json()["items"][0]["position"].values()
 
 
-@app.route("/", methods=["GET"])
-def index():
-    q = request.args.get("q")
-    if q is None:
-        return "choose q such as /?q=Berlin"
-
+def get_location(q):
     location = Location.query.filter(Location.q == q).first()
 
     if location is None:
@@ -54,6 +49,30 @@ def index():
         location = Location(q=q, latitude=latitude, longitude=longitude)
         db.session.add(location)
         db.session.commit()
+    return location
 
-    return jsonify({"latitude": location.latitude, "longitude": location.longitude})
 
+@app.route("/", methods=["GET"])
+def index_get():
+    q = request.args.get("q")
+    if q is None:
+        return "choose q such as /?q=Berlin"
+
+    location = get_location(q)
+
+    return {"latitude": location.latitude, "longitude": location.longitude}
+
+
+@app.route("/", methods=["POST"])
+def index_post():
+    data = request.get_json()
+
+    if data is None or "locations" not in data or len(data["locations"]) == 0:
+        return "post data like this: `{'locations': [{'location': 'Berlin'}]}`"
+
+    for x in data["locations"]:
+        location = get_location(x["location"])
+        x["latitude"] = location.latitude
+        x["longitude"] = location.longitude
+
+    return data
