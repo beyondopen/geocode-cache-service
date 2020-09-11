@@ -8,7 +8,7 @@ COPY ./ /app
 
 RUN pip install -U poetry
 RUN poetry config virtualenvs.create false
-RUN /bin/sh -c '[[ -z "${FLASK_ENV}" ]] && poetry install --no-interaction --no-root || poetry install --no-dev --no-interaction --no-root'
+RUN poetry install --no-dev --no-interaction --no-root
 
 ENV FLASK_APP=/app/app.py
 EXPOSE 5000
