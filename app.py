@@ -48,6 +48,7 @@ def get_location(q):
     location = Location.query.filter(Location.q == q).first()
 
     if location is None:
+        print(f'need to lookup {q}')
         geocode_result = geocode(q)
 
         if geocode_result is None:
