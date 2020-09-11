@@ -34,21 +34,23 @@ db.create_all()
 
 
 def geocode(q):
+    print(f'need to lookup {q}')
+
     r = requests.get(
         f"https://geocode.search.hereapi.com/v1/geocode?q={q}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     )
-    if r.ok:
-        items = r.json()["items"]
-        if len(items) > 0:
-            return items[0]["position"].values()
-        return None
+    r.raise_for_status()
+    
+    items = r.json()["items"]
+    if len(items) > 0:
+        return items[0]["position"].values()
+    return None
 
 
 def get_location(q):
     location = Location.query.filter(Location.q == q).first()
 
     if location is None:
-        print(f'need to lookup {q}')
         geocode_result = geocode(q)
 
         if geocode_result is None:
