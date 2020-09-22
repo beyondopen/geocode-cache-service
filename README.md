@@ -4,6 +4,9 @@ Flask app to geocode locations and cache the results.
 
 Using <https://developer.here.com/documentation/geocoding-search-api/dev_guide/index.html>.
 
+
+https://developer.here.com/documentation/geocoding-search-api/api-reference-swagger.html
+
 ```bash
 curl -u username:password https://geocode.app.vis.one/q=Berlin
 ```
