@@ -35,6 +35,7 @@ class Location(db.Model):
 def resetdb():
     db.drop_all()
     print('resetdb successful!')
+    db.create_all()
 
 
 db.create_all()
@@ -46,7 +47,9 @@ def geocode_here(q):
     q = eval(q)
     print(f'evaluated {q}')
 
-
+    if q[0][1] == '':
+        return None
+        
     qq = []
     for x in q:
         if len(x) == 2:
