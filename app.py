@@ -33,8 +33,8 @@ class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     country = db.Column(db.Text(), nullable=False)
     state = db.Column(db.Text(), nullable=False)
-    county = db.Column(db.Text(), nullable=False)
-    city = db.Column(db.Text(), nullable=False)
+    county = db.Column(db.Text())
+    city = db.Column(db.Text())
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
@@ -51,7 +51,7 @@ db.create_all()
 
 
 def geocode_here(q):
-    qq = ";".join([f"{k}={v}" for k, v in q.items()])
+    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None])
 
     r = requests.get(
         f"https://geocode.search.hereapi.com/v1/geocode?qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
