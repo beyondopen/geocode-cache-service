@@ -2,7 +2,7 @@ import os
 import time
 
 import requests
-from flask import Flask, request, abort
+from flask import Flask, abort, request
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -24,8 +24,17 @@ db = SQLAlchemy(app)
 
 
 class Location(db.Model):
+    __table_args__ = (
+        db.UniqueConstraint(
+            "city", "county", "state", "country", name="location_index"
+        ),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
-    q = db.Column(db.Text(), unique=True, nullable=False)
+    country = db.Column(db.Text(), nullable=False)
+    state = db.Column(db.Text(), nullable=False)
+    county = db.Column(db.Text(), nullable=False)
+    city = db.Column(db.Text(), nullable=False)
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
@@ -34,7 +43,7 @@ class Location(db.Model):
 @app.cli.command()
 def resetdb():
     db.drop_all()
-    print('resetdb successful!')
+    print("resetdb successful!")
     db.create_all()
 
 
@@ -42,25 +51,13 @@ db.create_all()
 
 
 def geocode_here(q):
-    print(f'need to lookup {q}')
-
-    q = eval(q)
-    print(f'evaluated {q}')
-
-    if q[0][1] == '':
-        return None
-        
-    qq = []
-    for x in q:
-        if len(x) == 2:
-            qq .append(x[0] + '=' + x[1])
-    qq = ';'.join(qq)
+    qq = ";".join([f"{k}={v}" for k, v in q.items()])
 
     r = requests.get(
         f"https://geocode.search.hereapi.com/v1/geocode?qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     )
     r.raise_for_status()
-    
+
     items = r.json()["items"]
     if len(items) > 0:
         return items[0]["position"].values()
@@ -68,13 +65,20 @@ def geocode_here(q):
 
 
 def geocode(q, p):
-    if p == 'here':
+    if p == "here":
         return geocode_here(q)
     return None
 
 
 def get_location(q, p):
-    location = Location.query.filter(Location.q == q).filter(Location.provider == p).first()
+    location = (
+        Location.query.filter(Location.city == q["city"])
+        .filter(Location.county == q["county"])
+        .filter(Location.state == q["state"])
+        .filter(Location.country == q["country"])
+        .filter(Location.provider == p)
+        .first()
+    )
 
     if location is None:
         geocode_result = geocode(q, p)
@@ -83,7 +87,7 @@ def get_location(q, p):
             return None
 
         latitude, longitude = geocode_result
-        location = Location(q=q, latitude=latitude, longitude=longitude, provider=p)
+        location = Location(**q, latitude=latitude, longitude=longitude, provider=p)
         db.session.add(location)
         db.session.commit()
     return location
@@ -91,18 +95,22 @@ def get_location(q, p):
 
 @app.route("/", methods=["GET"])
 def index_get():
-    q = request.args.get("q")
-    if q is None:
-        return 'choose q such as /?q=[["city", "Haldensleben"], ["county", "Börde"], ["state", "Sachsen-Anhalt"], ["country", "Deutschland"]]'
+    city = request.args.get("city")
+    county = request.args.get("county")
+    state = request.args.get("state")
+    country = request.args.get("country")
+    provider = request.args.get("provider")
+    # city & county are optional
+    if None in [state, country, provider]:
+        return "please construct your requests as follows /?provider=here&city=Haldensleben&county=Börde&state=Sachsen-Anhalt&country=Deutschland"
 
-    provider = request.args.get("p")
-    if provider is None:
-        return "choose provider such as /?p=here"
+    query = {"state": state, "country": country, "city": city, "county": county}
+
     provider = provider.lower()
 
-    location = get_location(q, provider)
+    location = get_location(query, provider)
     if location is None:
-        abort(400, f"geolocation failed for `{q}` and `{provider}`")
+        abort(400, f"geolocation failed for `{query}` and `{provider}`")
     return {"latitude": location.latitude, "longitude": location.longitude}
 
 
@@ -111,12 +119,12 @@ def index_post():
     data = request.get_json()
 
     if data is None or "qs" not in data or len(data["qs"]) == 0:
-        return 'post data like this: `{"p": "here", "qs": [{"q": [["city", "Haldensleben"], ["county", "Börde"], ["state", "Sachsen-Anhalt"], ["country", "Deutschland"]]}]}`'
-    
-    provider = data["p"].lower()
+        return 'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`'
 
-    for x in data["qs"]:
-        location = get_location(x["q"], provider)
+    provider = data["provider"].lower()
+
+    for x in data["locations"]:
+        location = get_location(x["query"], provider)
         if location is not None:
             x["latitude"] = location.latitude
             x["longitude"] = location.longitude
