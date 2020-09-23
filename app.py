@@ -102,7 +102,10 @@ def index_get():
     provider = request.args.get("provider")
     # city & county are optional
     if None in [state, country, provider]:
-        return "please construct your requests as follows /?provider=here&city=Haldensleben&county=Börde&state=Sachsen-Anhalt&country=Deutschland"
+        abort(
+            400,
+            "please construct your requests as follows /?provider=here&city=Haldensleben&county=Börde&state=Sachsen-Anhalt&country=Deutschland",
+        )
 
     query = {"state": state, "country": country, "city": city, "county": county}
 
@@ -119,7 +122,10 @@ def index_post():
     data = request.get_json()
 
     if data is None or "locations" not in data or len(data["locations"]) == 0:
-        return 'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`'
+        abort(
+            400,
+            'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`',
+        )
 
     provider = data["provider"].lower()
 
