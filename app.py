@@ -118,7 +118,7 @@ def index_get():
 def index_post():
     data = request.get_json()
 
-    if data is None or "qs" not in data or len(data["qs"]) == 0:
+    if data is None or "locations" not in data or len(data["locations"]) == 0:
         return 'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`'
 
     provider = data["provider"].lower()
