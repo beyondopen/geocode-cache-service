@@ -53,6 +53,7 @@ db.create_all()
 def geocode_here(q):
     qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None])
 
+    print(qq)
     r = requests.get(
         f"https://geocode.search.hereapi.com/v1/geocode?qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     )
