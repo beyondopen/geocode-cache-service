@@ -67,7 +67,7 @@ def geocode_here(q):
     if len(items) == 0:
         return None
     item = items[0]
-    if not item["resultType"] in ["locality", "street"]:
+    if not item["resultType"] in ["locality", "street", "place"]:
         return None
 
     if "district" in item["address"]:
