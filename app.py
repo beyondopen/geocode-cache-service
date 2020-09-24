@@ -38,6 +38,9 @@ class Location(db.Model):
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
+    result_district = db.Column(db.Text())
+    result_city = db.Column(db.Text())
+    result_county = db.Column(db.Text())
 
 
 @app.cli.command()
@@ -61,9 +64,26 @@ def geocode_here(q):
     r.raise_for_status()
 
     items = r.json()["items"]
-    if len(items) > 0:
-        return items[0]["position"].values()
-    return None
+    if len(items) == 0:
+        return None
+    item = items[0]
+    if item["resultType"] != "locality":
+        return None
+
+    if item["localityType"] == "district":
+        return (
+            *item["position"].values(),
+            item["address"]["county"],
+            item["address"]["city"],
+            item["address"]["district"],
+        )
+    else:
+        return (
+            *item["position"].values(),
+            item["address"]["county"],
+            item["address"]["city"],
+            None,
+        )
 
 
 def geocode(q, p):
@@ -88,8 +108,16 @@ def get_location(q, p):
         if geocode_result is None:
             return None
 
-        latitude, longitude = geocode_result
-        location = Location(**q, latitude=latitude, longitude=longitude, provider=p)
+        latitude, longitude, r_county, r_city, r_district = geocode_result
+        location = Location(
+            **q,
+            latitude=latitude,
+            longitude=longitude,
+            result_county=r_county,
+            result_city=r_city,
+            result_district=r_district,
+            provider=p,
+        )
         db.session.add(location)
         db.session.commit()
     return location
@@ -116,7 +144,14 @@ def index_get():
     location = get_location(query, provider)
     if location is None:
         abort(400, f"geolocation failed for `{query}` and `{provider}`")
-    return {"latitude": location.latitude, "longitude": location.longitude}
+
+    return {
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+        "county": location.result_county,
+        "city": location.result_city,
+        "district": location.result_district,
+    }
 
 
 @app.route("/", methods=["POST"])
@@ -136,5 +171,7 @@ def index_post():
         if location is not None:
             x["latitude"] = location.latitude
             x["longitude"] = location.longitude
-
+            x["county"] = location.result_county
+            x["city"] = location.result_city
+            x["district"] = location.result_district
     return data
