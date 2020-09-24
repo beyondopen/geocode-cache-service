@@ -70,7 +70,7 @@ def geocode_here(q):
     if not item["resultType"] in ["locality", "street"]:
         return None
 
-    if item["resultType"] == "street" or item["localityType"] == "district":
+    if "district" in item["address"]:
         return (
             *item["position"].values(),
             item["address"]["county"],
