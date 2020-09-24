@@ -51,12 +51,13 @@ db.create_all()
 
 
 def geocode_here(q):
-    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None])
+    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None and k != "city"])
+    q_city = q["city"]
 
-    print(qq)
-    r = requests.get(
-        f"https://geocode.search.hereapi.com/v1/geocode?qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
-    )
+    url = f"https://geocode.search.hereapi.com/v1/geocode?q={q_city}&qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
+    print(url)
+
+    r = requests.get(url)
     r.raise_for_status()
 
     items = r.json()["items"]
