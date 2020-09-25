@@ -67,6 +67,18 @@ def geocode_here(q):
     if len(items) == 0:
         return None
     item = items[0]
+
+    if (
+        item["resultType"] == "administrativeArea"
+        and item["administrativeAreaType"] == "county"
+    ):
+        return (
+            *item["position"].values(),
+            item["address"]["county"],
+            None,
+            None,
+        )
+
     if not item["resultType"] in ["locality", "street", "place"]:
         return None
 
