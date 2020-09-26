@@ -62,7 +62,7 @@ def geocode_here(q):
     q_city = q["city"]
 
     url = f"https://geocode.search.hereapi.com/v1/geocode?q={q_city}&qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
-    print(url)
+    print(url, flush=True)
 
     r = requests.get(url, timeout=30)
     r.raise_for_status()
