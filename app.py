@@ -84,7 +84,7 @@ def geocode_here(q):
     adr = item["address"]
 
     county = adr["county"]
-    city = adr["city"]
+    city = adr["city"] if "city" in adr else None
     district = adr["district"] if "district" in adr else None
     street = adr["street"] if "street" in adr else None
     postal_code = adr["postalCode"] if "postalCode" in adr else None
