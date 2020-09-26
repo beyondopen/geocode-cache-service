@@ -38,6 +38,10 @@ class Location(db.Model):
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
+
+    result_house_number = db.Column(db.Text())
+    result_street = db.Column(db.Text())
+    result_postal_code = db.Column(db.Text())
     result_district = db.Column(db.Text())
     result_city = db.Column(db.Text())
     result_county = db.Column(db.Text())
@@ -70,32 +74,31 @@ def geocode_here(q):
 
     if (
         item["resultType"] == "administrativeArea"
-        and item["administrativeAreaType"] == "county"
+        and not item["administrativeAreaType"] == "county"
     ):
-        return (
-            *item["position"].values(),
-            item["address"]["county"],
-            None,
-            None,
-        )
-
-    if not item["resultType"] in ["locality", "street", "place"]:
         return None
 
-    if "district" in item["address"]:
-        return (
-            *item["position"].values(),
-            item["address"]["county"],
-            item["address"]["city"],
-            item["address"]["district"],
-        )
-    else:
-        return (
-            *item["position"].values(),
-            item["address"]["county"],
-            item["address"]["city"],
-            None,
-        )
+    if not item["resultType"] in ["locality", "street", "place", "houseNumber"]:
+        return None
+
+    adr = item["address"]
+
+    county = adr["county"]
+    city = adr["city"]
+    district = adr["district"] if "district" in adr else None
+    street = adr["street"] if "street" in adr else None
+    postal_code = adr["postalCode"] if "postalCode" in adr else None
+    house_number = adr["houseNumber"] if "houseNumber" in adr else None
+
+    return (
+        *item["position"].values(),
+        county,
+        city,
+        district,
+        street,
+        postal_code,
+        house_number,
+    )
 
 
 def geocode(q, p):
@@ -120,7 +123,16 @@ def get_location(q, p):
         if geocode_result is None:
             return None
 
-        latitude, longitude, r_county, r_city, r_district = geocode_result
+        (
+            latitude,
+            longitude,
+            r_county,
+            r_city,
+            r_district,
+            r_street,
+            r_postal_code,
+            r_house_number,
+        ) = geocode_result
         location = Location(
             **q,
             latitude=latitude,
@@ -128,6 +140,9 @@ def get_location(q, p):
             result_county=r_county,
             result_city=r_city,
             result_district=r_district,
+            result_street=r_street,
+            result_postal_code=r_postal_code,
+            result_house_number=r_house_number,
             provider=p,
         )
         db.session.add(location)
@@ -163,6 +178,9 @@ def index_get():
         "county": location.result_county,
         "city": location.result_city,
         "district": location.result_district,
+        "street": location.result_street,
+        "house_number": location.result_house_number,
+        "postal_code": location.result_postal_code,
     }
 
 
@@ -186,4 +204,7 @@ def index_post():
             x["county"] = location.result_county
             x["city"] = location.result_city
             x["district"] = location.result_district
+            x["street"] = location.result_street
+            x["house_number"] = location.result_house_number
+            x["postal_code"] = location.result_postal_code
     return data
