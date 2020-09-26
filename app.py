@@ -78,7 +78,13 @@ def geocode_here(q):
     ):
         return None
 
-    if not item["resultType"] in ["locality", "street", "place", "houseNumber"]:
+    if not item["resultType"] in [
+        "administrativeArea",
+        "locality",
+        "street",
+        "place",
+        "houseNumber",
+    ]:
         return None
 
     adr = item["address"]
