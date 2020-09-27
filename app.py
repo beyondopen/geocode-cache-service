@@ -188,7 +188,7 @@ def index_get():
         "house_number": location.result_house_number,
         "postal_code": location.result_postal_code,
         "state": location.state,
-        "county": location.country,
+        "country": location.country,
     }
 
 
@@ -216,5 +216,5 @@ def index_post():
             x["house_number"] = location.result_house_number
             x["postal_code"] = location.result_postal_code
             x["state"] = location.state
-            x["county"] = location.country
+            x["country"] = location.country
     return data
