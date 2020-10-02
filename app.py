@@ -24,6 +24,7 @@ db = SQLAlchemy(app)
 
 
 class Location(db.Model):
+    # TODO: drop?
     __table_args__ = (
         db.UniqueConstraint(
             "city", "county", "state", "country", name="location_index"
