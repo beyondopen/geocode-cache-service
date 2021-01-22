@@ -27,7 +27,7 @@ class Location(db.Model):
     # TODO: drop?
     __table_args__ = (
         db.UniqueConstraint(
-            "city", "county", "state", "country", name="location_index"
+            "city", "county", "state", "country", 'district', 'address', name="location_index"
         ),
     )
 
@@ -36,6 +36,8 @@ class Location(db.Model):
     state = db.Column(db.Text(), nullable=False)
     county = db.Column(db.Text())
     city = db.Column(db.Text())
+    address = db.Column(db.Text())
+    district = db.Column(db.Text())
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
@@ -59,8 +61,11 @@ db.create_all()
 
 
 def geocode_here(q):
-    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None and k != "city"])
+    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None and k != "city" and k != "address"])
     q_city = q["city"]
+
+    if 'address' in q and q['address'] is not None and len(q['address']) > 0:
+        q_city = q['address'] + ', ' + q_city
 
     url = f"https://geocode.search.hereapi.com/v1/geocode?q={q_city}&qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     print(url, flush=True)
@@ -118,6 +123,8 @@ def get_location(q, p):
     location = (
         Location.query.filter(Location.city == q["city"])
         .filter(Location.county == q["county"])
+        .filter(Location.address == q["address"])
+        .filter(Location.district == q["district"])
         .filter(Location.state == q["state"])
         .filter(Location.country == q["country"])
         .filter(Location.provider == p)
@@ -164,6 +171,9 @@ def index_get():
     state = request.args.get("state")
     country = request.args.get("country")
     provider = request.args.get("provider")
+    district = request.args.get("district")
+    address = request.args.get("address")
+
     # city & county are optional
     if None in [state, country, provider]:
         abort(
@@ -171,7 +181,7 @@ def index_get():
             "please construct your requests as follows /?provider=here&city=Haldensleben&county=Börde&state=Sachsen-Anhalt&country=Deutschland",
         )
 
-    query = {"state": state, "country": country, "city": city, "county": county}
+    query = {"state": state, "country": country, "city": city, "county": county, 'address': address, 'district': district}
 
     provider = provider.lower()
 
