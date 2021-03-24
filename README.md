@@ -18,7 +18,7 @@ Two endpoints:
 ### GET
 ```
 GET https://geocode.app.vis.one/?provider=here&city=Haldensleben&county=B%C3%B6rde&state=Sachsen-Anhalt&country=Deutschland
-
+```
 Return 400 if no location was found.
 
 ### POST
