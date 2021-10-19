@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY ./ /app
 
+RUN pip install --upgrade pip
 RUN pip install -U poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-dev --no-interaction --no-root
