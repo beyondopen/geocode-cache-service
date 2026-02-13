@@ -7,10 +7,10 @@ services:
     depends_on:
       - db
     environment:
-      - FLASK_ENV=development
+      - FLASK_DEBUG=1
     volumes: ["./:/app"]
   db:
-    image: postgres:11-alpine
+    image: postgres:16-alpine
     volumes:
       - ./misc/dbdata:/var/lib/postgresql/data
     expose:

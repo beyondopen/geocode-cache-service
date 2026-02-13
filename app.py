@@ -2,32 +2,18 @@ import os
 import time
 
 import requests
-from flask import Flask, abort, request
+from flask import Flask, abort, current_app, request
 from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)
-
-if app.debug:
-    url = "postgresql+psycopg2://postgres:password@db:5432/postgres"
-    time.sleep(10)
-    from pathlib import Path
-
-    api_key = Path("keys.txt").read_text()
-else:
-    url = os.environ["DATABASE_URL"]
-    api_key = os.environ["HERE_KEY"]
-
-
-app.config["SQLALCHEMY_DATABASE_URI"] = url
-
-db = SQLAlchemy(app)
+db = SQLAlchemy()
 
 
 class Location(db.Model):
-    # TODO: drop?
     __table_args__ = (
         db.UniqueConstraint(
-            "city", "county", "state", "country", name="location_index"
+            "city", "county", "state", "country",
+            "district", "street", "postal_code", "house_number",
+            name="location_index",
         ),
     )
 
@@ -36,6 +22,10 @@ class Location(db.Model):
     state = db.Column(db.Text(), nullable=False)
     county = db.Column(db.Text())
     city = db.Column(db.Text())
+    district = db.Column(db.Text())
+    street = db.Column(db.Text())
+    postal_code = db.Column(db.Text())
+    house_number = db.Column(db.Text())
     latitude = db.Column(db.Float(), nullable=False)
     longitude = db.Column(db.Float(), nullable=False)
     provider = db.Column(db.Text(), nullable=False)
@@ -48,21 +38,22 @@ class Location(db.Model):
     result_county = db.Column(db.Text())
 
 
-@app.cli.command()
-def resetdb():
-    db.drop_all()
-    print("resetdb successful!")
-    db.create_all()
-
-
-db.create_all()
+MODEL_KEYS = ("city", "county", "state", "country", "district", "street", "postal_code", "house_number")
 
 
 def geocode_here(q):
-    qq = ";".join([f"{k}={v}" for k, v in q.items() if v != None and k != "city"])
-    q_city = q["city"]
+    api_key = current_app.config["HERE_API_KEY"]
+    key_map = {"postal_code": "postalCode", "house_number": "houseNumber"}
+    qq = ";".join([
+        f"{key_map.get(k, k)}={v}"
+        for k, v in q.items() if v is not None
+    ])
 
-    url = f"https://geocode.search.hereapi.com/v1/geocode?q={q_city}&qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
+    city = q.get("city")
+    if city:
+        url = f"https://geocode.search.hereapi.com/v1/geocode?q={city}&qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
+    else:
+        url = f"https://geocode.search.hereapi.com/v1/geocode?qq={qq}&apiKey={api_key}&lang=de-de&in=countryCode:DEU&limit=1"
     print(url, flush=True)
 
     r = requests.get(url, timeout=30)
@@ -115,17 +106,23 @@ def geocode(q, p):
 
 
 def get_location(q, p):
-    location = (
-        Location.query.filter(Location.city == q["city"])
-        .filter(Location.county == q["county"])
-        .filter(Location.state == q["state"])
-        .filter(Location.country == q["country"])
+    model_q = {k: q.get(k) for k in MODEL_KEYS}
+
+    location = db.session.execute(
+        db.select(Location)
+        .filter(Location.city == model_q["city"])
+        .filter(Location.county == model_q["county"])
+        .filter(Location.state == model_q["state"])
+        .filter(Location.country == model_q["country"])
+        .filter(Location.district == model_q["district"])
+        .filter(Location.street == model_q["street"])
+        .filter(Location.postal_code == model_q["postal_code"])
+        .filter(Location.house_number == model_q["house_number"])
         .filter(Location.provider == p)
-        .first()
-    )
+    ).scalar_one_or_none()
 
     if location is None:
-        geocode_result = geocode(q, p)
+        geocode_result = geocode(model_q, p)
 
         if geocode_result is None:
             return None
@@ -141,7 +138,7 @@ def get_location(q, p):
             r_house_number,
         ) = geocode_result
         location = Location(
-            **q,
+            **model_q,
             latitude=latitude,
             longitude=longitude,
             result_county=r_county,
@@ -157,65 +154,93 @@ def get_location(q, p):
     return location
 
 
-@app.route("/", methods=["GET"])
-def index_get():
-    city = request.args.get("city")
-    county = request.args.get("county")
-    state = request.args.get("state")
-    country = request.args.get("country")
-    provider = request.args.get("provider")
-    # city & county are optional
-    if None in [state, country, provider]:
-        abort(
-            400,
-            "please construct your requests as follows /?provider=here&city=Haldensleben&county=Börde&state=Sachsen-Anhalt&country=Deutschland",
-        )
+def create_app(config=None):
+    app = Flask(__name__)
 
-    query = {"state": state, "country": country, "city": city, "county": county}
+    if config:
+        app.config.update(config)
+    else:
+        if app.debug:
+            app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:password@db:5432/postgres"
+            time.sleep(10)
+            from pathlib import Path
+            app.config["HERE_API_KEY"] = Path("keys.txt").read_text()
+        else:
+            app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
+            app.config["HERE_API_KEY"] = os.environ["HERE_KEY"]
 
-    provider = provider.lower()
+    db.init_app(app)
 
-    location = get_location(query, provider)
-    if location is None:
-        abort(400, f"geolocation failed for `{query}` and `{provider}`")
+    with app.app_context():
+        db.create_all()
 
-    return {
-        "latitude": location.latitude,
-        "longitude": location.longitude,
-        "county": location.result_county,
-        "city": location.result_city,
-        "district": location.result_district,
-        "street": location.result_street,
-        "house_number": location.result_house_number,
-        "postal_code": location.result_postal_code,
-        "state": location.state,
-        "country": location.country,
-    }
+    @app.cli.command()
+    def resetdb():
+        db.drop_all()
+        print("resetdb successful!")
+        db.create_all()
 
+    @app.route("/", methods=["GET"])
+    def index_get():
+        provider = request.args.get("provider")
+        if provider is None:
+            abort(400, "provider is required")
 
-@app.route("/", methods=["POST"])
-def index_post():
-    data = request.get_json()
+        query = {
+            "city": request.args.get("city"),
+            "county": request.args.get("county"),
+            "state": request.args.get("state"),
+            "country": request.args.get("country"),
+            "district": request.args.get("district"),
+            "street": request.args.get("street"),
+            "postal_code": request.args.get("postal_code"),
+            "house_number": request.args.get("house_number"),
+        }
 
-    if data is None or "locations" not in data or len(data["locations"]) == 0:
-        abort(
-            400,
-            'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`',
-        )
+        provider = provider.lower()
 
-    provider = data["provider"].lower()
+        location = get_location(query, provider)
+        if location is None:
+            abort(400, f"geolocation failed for `{query}` and `{provider}`")
 
-    for x in data["locations"]:
-        location = get_location(x["query"], provider)
-        if location is not None:
-            x["latitude"] = location.latitude
-            x["longitude"] = location.longitude
-            x["county"] = location.result_county
-            x["city"] = location.result_city
-            x["district"] = location.result_district
-            x["street"] = location.result_street
-            x["house_number"] = location.result_house_number
-            x["postal_code"] = location.result_postal_code
-            x["state"] = location.state
-            x["country"] = location.country
-    return data
+        return {
+            "latitude": location.latitude,
+            "longitude": location.longitude,
+            "county": location.result_county,
+            "city": location.result_city,
+            "district": location.result_district,
+            "street": location.result_street,
+            "house_number": location.result_house_number,
+            "postal_code": location.result_postal_code,
+            "state": location.state,
+            "country": location.country,
+        }
+
+    @app.route("/", methods=["POST"])
+    def index_post():
+        data = request.get_json()
+
+        if data is None or "locations" not in data or len(data["locations"]) == 0:
+            abort(
+                400,
+                'post data like this: `{"provider": "here", "locations": [{"query": {"city":"Haldensleben", "county": "Börde", "state": "Sachsen-Anhalt", "country": "Deutschland"}}]}`',
+            )
+
+        provider = data["provider"].lower()
+
+        for x in data["locations"]:
+            location = get_location(x["query"], provider)
+            if location is not None:
+                x["latitude"] = location.latitude
+                x["longitude"] = location.longitude
+                x["county"] = location.result_county
+                x["city"] = location.result_city
+                x["district"] = location.result_district
+                x["street"] = location.result_street
+                x["house_number"] = location.result_house_number
+                x["postal_code"] = location.result_postal_code
+                x["state"] = location.state
+                x["country"] = location.country
+        return data
+
+    return app
