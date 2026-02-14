@@ -166,7 +166,10 @@ def create_app(config=None):
             from pathlib import Path
             app.config["HERE_API_KEY"] = Path("keys.txt").read_text()
         else:
-            app.config["SQLALCHEMY_DATABASE_URI"] = os.environ["DATABASE_URL"]
+            uri = os.environ["DATABASE_URL"]
+            if uri.startswith("postgres://"):
+                uri = uri.replace("postgres://", "postgresql://", 1)
+            app.config["SQLALCHEMY_DATABASE_URI"] = uri
             app.config["HERE_API_KEY"] = os.environ["HERE_KEY"]
 
     db.init_app(app)
