@@ -15,7 +15,7 @@ gunicorn = "^23.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.0"
-pytest = "^8.0"
+pytest = ">=8,<10"
 
 [build-system]
 requires = ["poetry-core>=2.0"]
